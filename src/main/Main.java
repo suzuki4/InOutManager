@@ -21,13 +21,5 @@ public class Main {
 		System.out.println(qrCode);
 		mainFrame.setMsg(qrCode);
 		*/
-		while(true) {
-			frame.frameMain.setClock();
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
 	}
 }

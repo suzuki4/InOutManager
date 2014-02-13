@@ -7,10 +7,10 @@ import javax.swing.JFrame;
 
 public class Frame extends JFrame {
 	//フィールド
-	public CardLayout cardLayout;	//カードレイアウト
-	public FrameMain frameMain;		//各フレーム
-	public FrameAccount frameAccount;
-	public FrameHistory frameHistory;
+	public CardLayout cardLayout;
+	FrameMain frameMain;
+	FrameAccount frameAccount;
+	FrameHistory frameHistory;
 	
 	//コンストラクタ
 	public Frame() throws SQLException {
@@ -22,9 +22,18 @@ public class Frame extends JFrame {
 		//タイトル
 		setTitle("メイン画面");
 		//各フレーム作成
-		this.frameMain = new FrameMain(this);
-		this.frameAccount = new FrameAccount(this);
-		this.frameHistory = new FrameHistory(this);
+		frameMain = new FrameMain(this);
+		frameAccount = new FrameAccount(this);
+		frameHistory = new FrameHistory(this);
+		//frameMainの時計起動
+		while(true) {
+			frameMain.setClock();
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 		
