@@ -16,8 +16,12 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+
+import qrCode.QrReader;
+import qrCode.QrReadingThread;
 
 public class FrameMain extends JFrame implements ActionListener{
 	//フィールド
@@ -32,8 +36,10 @@ public class FrameMain extends JFrame implements ActionListener{
 	private Panel panelMain = new Panel();
 	private Frame frame;
 	//OnOff切り替え用
-	private CardLayout cardLayout = new CardLayout();
-	private Panel cardPanel = new Panel();
+	public static CardLayout cardLayout = new CardLayout();
+	public static Panel cardPanel = new Panel();
+	public final static String ON = "on"; 
+	public final static String OFF = "off"; 
 	
 	//コンストラクタ
 	public FrameMain(Frame frame) {
@@ -51,9 +57,9 @@ public class FrameMain extends JFrame implements ActionListener{
 		//NORTH
 			//カメラOnOff用カードパネルを作成
 			cardPanel.setLayout(cardLayout);
-			cardPanel.add("on", buttonOn);
-			cardPanel.add("off", buttonOff);
-		    cardLayout.show(cardPanel, "on");
+			cardPanel.add(ON, buttonOn);
+			cardPanel.add(OFF, buttonOff);
+		    cardLayout.show(cardPanel, OFF);
 		    //メニューパネルを作成
 		    Panel menuPanel = new Panel();
 		    menuPanel.setLayout(new GridLayout(1, 3));
@@ -86,10 +92,16 @@ public class FrameMain extends JFrame implements ActionListener{
 		
 	//アクションイベント
 	public void actionPerformed(ActionEvent e) {
+		QrReader qrReader = QrReader.getInstance();
 		if(e.getSource() == buttonOn) {
-			cardLayout.show(cardPanel, "off");
+			cardLayout.show(cardPanel, OFF);
+			qrReader.isWorking = false;
+		} else if(qrReader.isWorking == true ) {
+			JOptionPane.showMessageDialog(this, "カメラ起動中です。先に休止してください。");
 		} else if(e.getSource() == buttonOff) {
-			cardLayout.show(cardPanel, "on");
+			cardLayout.show(cardPanel, ON);
+			qrReader.isWorking = true;
+			new QrReadingThread(this).start();
 		} else if(e.getSource() == buttonAccount) {
 			frame.cardLayout.show(frame.getContentPane(), "panelAccount");
 			frame.setTitle("登録情報画面");

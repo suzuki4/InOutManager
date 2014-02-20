@@ -22,21 +22,17 @@ import javax.swing.JOptionPane;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 
+import qrCode.QrReader;
 import mail.SendMail;
 import database.DBManager;
 import database.TableAccount;
 
 public class SettingDialog extends JDialog implements ActionListener{
 	//フィールド
-	/*public static String smtpServer = "mail.denshin-z.co.jp";
-    public static String smtpPort = "587";
-    public static String accountName = "infokamiikedai";
-    public static String password = "Krs7jE42";
-    public static String fromAddress = "infokamiikedai@denshin-z.co.jp";
-    public static String fromName = "入退室管理システム";
-    */
 	private JLabel labelCamera = new JLabel("使用Webカメラ:");
-	private JComboBox comboCamera = new JComboBox();
+	private JComboBox comboCamera = new JComboBox(QrReader.getInstance().getWebcamNames());
+	private JLabel labelOfficeName = new JLabel("教室名(変更すると全QRコード要変更)：");
+	private JTextField fieldOfficeName = new JTextField();
 	private JLabel labelFromAddress = new JLabel("送信アドレス:");
 	private JTextField fieldFromAddress = new JTextField();
 	private JLabel labelFromName = new JLabel("表示名:");
@@ -67,23 +63,30 @@ public class SettingDialog extends JDialog implements ActionListener{
 		ResultSet resultSet;
 		try {
 			resultSet = manager.showMasterData();
-			////kamera
+				//カメラ番号が接続カメラ数を超えていたらカメラ番号0で対応
+				int cameraNumber = resultSet.getInt("CAMERA");
+				if(cameraNumber >= QrReader.getInstance().getWebcamNames().length) cameraNumber = 0;
+			comboCamera.setSelectedIndex(cameraNumber);
+			fieldOfficeName.setText(resultSet.getString("OFFICE_NAME"));
 			fieldFromAddress.setText(resultSet.getString("FROM_ADDRESS"));
 			fieldFromName.setText(resultSet.getString("FROM_NAME"));
 			fieldAccountName.setText(resultSet.getString("ACCOUNT_NAME"));
 			fieldPassword.setText(resultSet.getString("PASSWORD"));
 			fieldSmtpServer.setText(resultSet.getString("SMTP_SERVER"));
 			fieldSmtpPort.setText(resultSet.getString("SMTP_PORT"));		
+			manager.closeAll();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
-		
 		//ダイアログに表示するコンポーネントを設定
 		Container c = getContentPane();
 		
 		Box vBox = Box.createVerticalBox();
 		vBox.add(labelCamera);
 		vBox.add(comboCamera);
+		vBox.add(Box.createVerticalStrut(10));
+		vBox.add(labelOfficeName);
+		vBox.add(fieldOfficeName);
 		vBox.add(Box.createVerticalStrut(10));
 		vBox.add(labelFromAddress);
 		vBox.add(fieldFromAddress);
@@ -127,9 +130,11 @@ public class SettingDialog extends JDialog implements ActionListener{
 		//テストメールの場合
 		} else if(e.getSource() == buttonTestMail) {
 			SendMail sendMail = new SendMail(frame, fieldFromAddress.getText(), fieldFromName.getText(), fieldAccountName.getText(), fieldPassword.getText(), fieldSmtpServer.getText(), fieldSmtpPort.getText());
+			ArrayList<String> toAddress = new ArrayList<String>();
+			toAddress.add(fieldFromAddress.getText());
 			String subject = "テストメールの送信";
 			String message = "テストメールです。";
-			if(sendMail.send(subject, message)) JOptionPane.showMessageDialog(this, "テストメールが送信されました。");
+			if(sendMail.send(toAddress, subject, message)) JOptionPane.showMessageDialog(this, "テストメールが送信されました。");
 		//そうでなければOKなのでチェック
 		} else {
 			String message = "";
@@ -166,7 +171,7 @@ public class SettingDialog extends JDialog implements ActionListener{
 		DBManager manager = DBManager.getInstance();
 		//接続確認
 		try {
-			manager.updateMasterData(0, fieldFromAddress.getText(), fieldFromName.getText(), fieldAccountName.getText(), fieldPassword.getText(), fieldSmtpServer.getText(), fieldSmtpPort.getText());
+			manager.updateMasterData(comboCamera.getSelectedIndex(), fieldOfficeName.getText(), fieldFromAddress.getText(), fieldFromName.getText(), fieldAccountName.getText(), fieldPassword.getText(), fieldSmtpServer.getText(), fieldSmtpPort.getText());
 			manager.closeAll();
 			//完了メッセージ
 			//JOptionPane.showMessageDialog(this, "正常に更新されました。");

@@ -1,6 +1,7 @@
 package mail;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
 
@@ -17,10 +18,16 @@ import javax.mail.internet.MimeMessage;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 
+import frame.FrameMain;
+import qrCode.QrReader;
+
 public class SendMail {
     // 日本語メールの場合には ISO-2022-JPがオススメ。
     // UTF-8だと受信時に文字化けしてしまうメーラが世の中には依然として存在しています。
     private static final String ENCODE = "ISO-2022-JP";
+    public static final String subject = "自動メール";
+    public static final String inMailMessage = "入室しました。";
+    public static final String outMailMessage = "退室しました。";    
     private JFrame frame;
     private String fromAddress;
     private String fromName;
@@ -44,7 +51,7 @@ public class SendMail {
 	}
     
     //
-    public boolean send(String subject, String msg) {
+    public boolean send(ArrayList<String> toAddress, String subject, String msg) {
         final Properties props = new Properties();
 
         // 基本情報。ここでは niftyへの接続例を示します。
@@ -73,8 +80,11 @@ public class SendMail {
             final Address addrFrom = new InternetAddress(fromAddress, fromName, ENCODE);//送信元アドレス、送信者の表示名、エンコード
             message.setFrom(addrFrom);
 
-            final Address addrTo = new InternetAddress("keitai.4.suzuki@gmail.com", "", ENCODE);//送信先アドレス、受信者の表示名、エンコード
-            message.addRecipient(Message.RecipientType.TO, addrTo);
+            final Address[] addrTo = new Address[3];
+            for(int i = 0; i < toAddress.size(); i++) {
+            	addrTo[i] = new InternetAddress(toAddress.get(i), "", ENCODE);//送信先アドレス、受信者の表示名、エンコード	
+                message.addRecipient(Message.RecipientType.TO, addrTo[i]);
+            }
 
             // メールのSubject
             message.setSubject(subject, ENCODE);
@@ -103,10 +113,15 @@ public class SendMail {
             return true;
         } catch (AuthenticationFailedException e) {
             // 認証失敗は ここに入ります。
-        	JOptionPane.showMessageDialog(frame, "指定のユーザ名・パスワードでの認証に失敗しました。\n"
-                + e.toString());
+        	////oto
+        	QrReader.getInstance().isWorking = false;
+        	FrameMain.cardLayout.show(FrameMain.cardPanel, FrameMain.OFF);
+        	JOptionPane.showMessageDialog(frame, "指定のユーザ名・パスワードでの認証に失敗しました。\n" + e.toString());
         } catch (MessagingException e) {
             // smtpサーバへの接続失敗は ここに入ります。
+        	////oto
+        	QrReader.getInstance().isWorking = false;
+        	FrameMain.cardLayout.show(FrameMain.cardPanel, FrameMain.OFF);
         	JOptionPane.showMessageDialog(frame, "指定のsmtpサーバへの接続に失敗しました。\n" + e.toString());
             e.printStackTrace();
         }

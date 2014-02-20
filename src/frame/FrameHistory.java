@@ -8,8 +8,10 @@ import java.awt.Panel;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
@@ -24,6 +26,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
+import mail.SendMail;
 import database.DBManager;
 import database.TableAccount;
 import database.TableHistory;
@@ -142,7 +145,7 @@ public class FrameHistory extends JFrame implements ActionListener{
 			String inOrOut = selectedColumn == TableHistory.COLUMN_IN ? "入室" : "退室";
 			String selectedHistory = tableHistory.getActiveCellHistory();
 			//セルが選択されている場合
-			if(selectedColumn != -1 ) {
+			if(selectedColumn != -1 && selectedHistory != null) {
 				String message = 	inOrOut + ": " + selectedHistory + "\n"
 								+	"\n"
 								+	"本当に削除しても良いですか？\n"
@@ -164,12 +167,39 @@ public class FrameHistory extends JFrame implements ActionListener{
 				JOptionPane.showMessageDialog(this, "削除するセルを選択してください。");
 			}
 		} else if(e.getSource() == buttonSendMail) {
-			
-			//
-			//
-			
-			
-			
+			int selectedColumn = tableHistory.getActiveColumnHistory();
+			String inOrOut = selectedColumn == TableHistory.COLUMN_IN ? "入室" : "退室";
+			String selectedHistory = tableHistory.getActiveCellHistory();
+			//セルが選択されている場合
+			if(selectedColumn != -1 && selectedHistory != null) {
+				String message = 	inOrOut + ": " + selectedHistory + "\n"
+						+	"\n"
+						+	"本当に送信しても良いですか？\n";
+				//了解が選択された場合
+				if(JOptionPane.showConfirmDialog(null, message, "確認画面" , JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+					DBManager manager = DBManager.getInstance();
+					try {
+						ArrayList<String> toAddress = manager.getEmail(frame.frameAccount.id);
+						//送信先アドレスがある場合
+						if(!toAddress.isEmpty()) {
+							ResultSet resultSet = manager.showMasterData();
+							SendMail sendMail = new SendMail(this, resultSet.getString("FROM_ADDRESS"), resultSet.getString("FROM_NAME"), resultSet.getString("ACCOUNT_NAME"), resultSet.getString("PASSWORD"), resultSet.getString("SMTP_SERVER"), resultSet.getString("SMTP_PORT"));							
+							if(selectedColumn == TableHistory.COLUMN_IN) sendMail.send(toAddress, SendMail.subject, SendMail.inMailMessage);
+							else sendMail.send(toAddress, SendMail.subject, SendMail.outMailMessage);
+							JOptionPane.showMessageDialog(this, "送信が完了しました。");
+						//送信先アドレスがない場合
+						} else {
+							JOptionPane.showMessageDialog(this, "送信先メールアドレスがありません。\n登録メール・送信可否を確認してください。");					
+						}
+						manager.closeAll();
+					} catch (SQLException e1) {
+						e1.printStackTrace();
+					}	
+				}
+			//セルが選択されていない場合
+			} else {
+				JOptionPane.showMessageDialog(this, "メール送信するセルを選択してください。");	
+			}
 		} else if(e.getSource() == buttonCsv) {
 			JOptionPane.showMessageDialog(this, "未実装。コピペしてね。");
 		} else if(e.getSource() == buttonBack) {

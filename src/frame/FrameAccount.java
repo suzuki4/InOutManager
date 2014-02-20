@@ -129,6 +129,7 @@ public class FrameAccount extends JFrame implements ActionListener{
 					DBManager manager = DBManager.getInstance();
 					try {
 						manager.deleteData(id);
+						manager.deleteHistory(id);
 						manager.closeAll();
 				        tableUpdate();	//テーブル更新				
 					} catch (SQLException e1) {
@@ -185,6 +186,7 @@ public class FrameAccount extends JFrame implements ActionListener{
 			        DBManager manager = DBManager.getInstance();
 			        try {
 						manager.writeCsv(filePath);
+						manager.writeQr();
 				        manager.closeAll();
 					} catch (SQLException e1) {
 						e1.printStackTrace();

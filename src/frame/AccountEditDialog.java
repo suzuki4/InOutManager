@@ -40,6 +40,8 @@ public class AccountEditDialog extends AccountNewDialog {
 				//新idで追加して、旧idを削除
 				manager.addData(id, fieldStudentName.getText(), fieldParentName.getText(), (boolean) comboStatus1.getSelectedItem(), fieldEmail1.getText(), (boolean) comboStatus2.getSelectedItem(), fieldEmail2.getText(), (boolean) comboStatus3.getSelectedItem(), fieldEmail3.getText());
 				manager.deleteData(exId);
+				//入退室履歴のID変更
+				manager.editIdHistory(id, exId);
 			}
 			manager.closeAll();
 			//完了メッセージ
