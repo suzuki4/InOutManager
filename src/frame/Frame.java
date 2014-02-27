@@ -26,7 +26,7 @@ public class Frame extends JFrame {
 			// ウィンドウが閉じるときに呼ばれる
 			@Override
 			public void windowClosing(WindowEvent e) {
-				if(QrReader.getInstance().isWorking == true) QrReader.getInstance().isWorking = false;
+					if(QrReader.getInstance().isWorking == true) QrReader.getInstance().isWorking = false;
 			}
 		});
 		//レイアウト
@@ -35,9 +35,9 @@ public class Frame extends JFrame {
 		//タイトル
 		setTitle("メイン画面");
 		//各フレーム作成
-		frameMain = new FrameMain(this);
 		frameAccount = new FrameAccount(this);
 		frameHistory = new FrameHistory(this);
+		frameMain = new FrameMain(this);
 		//frameMainの時計起動
 		while(true) {
 			frameMain.setClock();

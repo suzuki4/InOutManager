@@ -1,25 +1,25 @@
 package main;
 
-import java.io.IOException;
-import java.util.ArrayList;
+import java.sql.SQLException;
+
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 
 import database.DBManager;
-import database.FilePath;
-import qrCode.QrReader;
-import qrCode.QrWriter;
 import frame.Frame;
-import frame.FrameMain;
 
 public class Main {
 
 	public static void main(String[] args) throws Exception {
-		//QrReader qrReader = QrReader.getInstance();
-		Frame frame = new Frame();
-		//DBManager manager = new DBManager();
-		//manager.connect();
-		/*String qrCode = qrReader.getQrCode();
-		System.out.println(qrCode);
-		mainFrame.setMsg(qrCode);
-		*/
+		try {
+			DBManager manager = DBManager.getInstance();
+			manager.connect();
+			manager.closeAll();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(new JFrame(), "データベースに接続できません！\n起動を中止します。");
+			System.exit(0);
+		}
+		new Frame();
 	}
 }

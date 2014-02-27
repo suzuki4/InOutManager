@@ -1,6 +1,8 @@
 package mail;
 
 import java.io.UnsupportedEncodingException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
@@ -18,16 +20,20 @@ import javax.mail.internet.MimeMessage;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 
+import database.DBManager;
 import frame.FrameMain;
 import qrCode.QrReader;
 
 public class SendMail {
     // 日本語メールの場合には ISO-2022-JPがオススメ。
     // UTF-8だと受信時に文字化けしてしまうメーラが世の中には依然として存在しています。
-    private static final String ENCODE = "ISO-2022-JP";
-    public static final String subject = "自動メール";
-    public static final String inMailMessage = "入室しました。";
-    public static final String outMailMessage = "退室しました。";    
+	private static final String ENCODE = "ISO-2022-JP";
+	public static final int IN = 1;
+	public static final int OUT = 2;
+    private String inMailSubject;
+    private String outMailSubject;
+    private String inMailMessage;
+    private String outMailMessage;    
     private JFrame frame;
     private String fromAddress;
     private String fromName;
@@ -38,20 +44,34 @@ public class SendMail {
     
 
 	//コンストラクタ
-    public SendMail(JFrame frame, String fromAddress, String fromName, String accountName,
-			String password, String smtpServer, String smtpPort) {
+    public SendMail(JFrame frame) throws SQLException {
 		super();
 		this.frame = frame;
-		this.fromAddress = fromAddress;
-		this.fromName = fromName;
-		this.accountName = accountName;
-		this.password = password;
-		this.smtpServer = smtpServer;
-		this.smtpPort = smtpPort;
-	}
+		
+		try {
+			DBManager manager = DBManager.getInstance();
+			ResultSet resultSet = manager.showMasterData();
+			fromAddress = resultSet.getString("FROM_ADDRESS");
+			fromName = resultSet.getString("FROM_NAME");
+			accountName = resultSet.getString("ACCOUNT_NAME");
+			password = resultSet.getString("PASSWORD");
+			smtpServer = resultSet.getString("SMTP_SERVER");
+			smtpPort = resultSet.getString("SMTP_PORT");
+			
+			resultSet = manager.showMailMessageData();
+			inMailSubject = resultSet.getString("IN_SUBJECT");
+			inMailMessage = resultSet.getString("IN_MESSAGE");
+			outMailSubject = resultSet.getString("OUT_SUBJECT");
+			outMailMessage = resultSet.getString("OUT_MESSAGE");
+			
+			manager.closeAll();
+		} catch (SQLException e) {
+			throw new SQLException("送信不可！！\nデータベースに接続できません。" + e.toString());
+		}
+    }
     
     //
-    public boolean send(ArrayList<String> toAddress, String subject, String msg) {
+    public boolean send(ArrayList<String> toAddress, int inOrOut) throws Exception {
         final Properties props = new Properties();
 
         // 基本情報。ここでは niftyへの接続例を示します。
@@ -87,9 +107,11 @@ public class SendMail {
             }
 
             // メールのSubject
+            String subject = inOrOut == IN ? inMailSubject : outMailSubject;
             message.setSubject(subject, ENCODE);
 
             // メール本文。setTextを用いると 自動的に[text/plain]となる。
+            String msg = inOrOut == IN ? inMailMessage : outMailMessage;
             message.setText(msg, ENCODE);
 
             // 仮対策: 開始
@@ -112,19 +134,11 @@ public class SendMail {
             Transport.send(message);
             return true;
         } catch (AuthenticationFailedException e) {
-            // 認証失敗は ここに入ります。
-        	////oto
-        	QrReader.getInstance().isWorking = false;
-        	FrameMain.cardLayout.show(FrameMain.cardPanel, FrameMain.OFF);
-        	JOptionPane.showMessageDialog(frame, "指定のユーザ名・パスワードでの認証に失敗しました。\n" + e.toString());
+        	// 認証失敗は ここに入ります。
+        	throw new Exception("送信不可！！\n指定のユーザ名・パスワードでの認証に失敗しました。\n" + e.toString());
         } catch (MessagingException e) {
             // smtpサーバへの接続失敗は ここに入ります。
-        	////oto
-        	QrReader.getInstance().isWorking = false;
-        	FrameMain.cardLayout.show(FrameMain.cardPanel, FrameMain.OFF);
-        	JOptionPane.showMessageDialog(frame, "指定のsmtpサーバへの接続に失敗しました。\n" + e.toString());
-            e.printStackTrace();
+        	throw new Exception("送信不可！！\n指定のsmtpサーバへの接続に失敗しました。\n" + e.toString());
         }
-        return false;
     }
 }

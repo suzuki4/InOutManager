@@ -2,6 +2,7 @@ package frame;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.Panel;
@@ -26,6 +27,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
+import ch.qos.logback.core.pattern.color.YellowCompositeConverter;
+import qrCode.Sound;
 import mail.SendMail;
 import database.DBManager;
 import database.TableAccount;
@@ -38,7 +41,7 @@ public class FrameHistory extends JFrame implements ActionListener{
 	private JButton buttonEdit = new JButton("編集");
 	private JButton buttonDelete = new JButton("削除");
 	private JButton buttonSendMail = new JButton("メール送信");
-	private JButton buttonCsv = new JButton("csv出力");
+	private JButton buttonCsv = new JButton("CSV出力");
 	private JButton buttonBack = new JButton("戻る");
 	public Panel panelHistory = new Panel();
 	private Frame frame;
@@ -60,8 +63,8 @@ public class FrameHistory extends JFrame implements ActionListener{
 		buttonBack.addActionListener(this);
 		
 		//パネル構成物作成
-		panelHistory.setLayout(new BorderLayout());
-		//NORTH
+		panelHistory.setLayout(new BoxLayout(panelHistory, BoxLayout.Y_AXIS));
+		//1行
 			//メニューパネルを作成
 		    Panel menuPanel = new Panel();
 		    menuPanel.setLayout(new GridLayout(2, 3));
@@ -72,18 +75,18 @@ public class FrameHistory extends JFrame implements ActionListener{
 		    menuPanel.add(buttonCsv);
 		    menuPanel.add(buttonBack);
 		    //配置
-		    panelHistory.add(menuPanel, BorderLayout.NORTH);
-		//CENTER
+		    panelHistory.add(menuPanel);
+		//2行
 		    //ラベル作成
 		    labelStudentName.setText(frame.frameAccount.studentName);
-		    panelHistory.add(labelStudentName, BorderLayout.CENTER);
+		    panelHistory.add(labelStudentName);
 		    
-		//SOUTH
+		//3行
 		    //テーブル作成
 		    tableHistory = new TableHistory();
 		    tablePane = tableHistory.getTablePane(frame.frameAccount.id);
 		    //データベース表示用テキストエリアを配置
-		    panelHistory.add(tablePane, BorderLayout.SOUTH);
+		    panelHistory.add(tablePane);
 		    
 		//メインパネルをカードpanelMainに設定
 		frame.add(panelHistory, "panelHistory");
@@ -182,10 +185,8 @@ public class FrameHistory extends JFrame implements ActionListener{
 						ArrayList<String> toAddress = manager.getEmail(frame.frameAccount.id);
 						//送信先アドレスがある場合
 						if(!toAddress.isEmpty()) {
-							ResultSet resultSet = manager.showMasterData();
-							SendMail sendMail = new SendMail(this, resultSet.getString("FROM_ADDRESS"), resultSet.getString("FROM_NAME"), resultSet.getString("ACCOUNT_NAME"), resultSet.getString("PASSWORD"), resultSet.getString("SMTP_SERVER"), resultSet.getString("SMTP_PORT"));							
-							if(selectedColumn == TableHistory.COLUMN_IN) sendMail.send(toAddress, SendMail.subject, SendMail.inMailMessage);
-							else sendMail.send(toAddress, SendMail.subject, SendMail.outMailMessage);
+							SendMail sendMail = new SendMail(this);							
+							sendMail.send(toAddress, selectedColumn == TableHistory.COLUMN_IN ? SendMail.IN : SendMail.OUT);
 							JOptionPane.showMessageDialog(this, "送信が完了しました。");
 						//送信先アドレスがない場合
 						} else {
@@ -194,6 +195,11 @@ public class FrameHistory extends JFrame implements ActionListener{
 						manager.closeAll();
 					} catch (SQLException e1) {
 						e1.printStackTrace();
+					} catch (Exception e1) {
+						//メールが遅れなかった場合
+						Sound sound = new Sound();
+						sound.play(sound.SOUND_ERROR);
+						JOptionPane.showMessageDialog(frame, e1.getMessage());
 					}	
 				}
 			//セルが選択されていない場合

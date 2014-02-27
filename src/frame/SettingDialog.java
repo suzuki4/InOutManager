@@ -1,8 +1,11 @@
 package frame;
 
+import java.awt.Color;
 import java.awt.Container;
 import java.awt.Frame;
 import java.awt.GridLayout;
+import java.awt.HeadlessException;
+import java.awt.JobAttributes;
 import java.awt.Panel;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -21,6 +24,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 
 import qrCode.QrReader;
 import mail.SendMail;
@@ -31,7 +35,7 @@ public class SettingDialog extends JDialog implements ActionListener{
 	//フィールド
 	private JLabel labelCamera = new JLabel("使用Webカメラ:");
 	private JComboBox comboCamera = new JComboBox(QrReader.getInstance().getWebcamNames());
-	private JLabel labelOfficeName = new JLabel("教室名(変更すると全QRコード要変更)：");
+	private JLabel labelOfficeName = new JLabel("教室名：");
 	private JTextField fieldOfficeName = new JTextField();
 	private JLabel labelFromAddress = new JLabel("送信アドレス:");
 	private JTextField fieldFromAddress = new JTextField();
@@ -45,17 +49,19 @@ public class SettingDialog extends JDialog implements ActionListener{
 	private JTextField fieldSmtpServer = new JTextField();
 	private JLabel labelSmtpPort = new JLabel("SMTPポート:");
 	private JTextField fieldSmtpPort = new JTextField();	
+	private JButton buttonMailMessage = new JButton("メール文設定");
+	private JButton buttonTestMail = new JButton("テストメール送信");
 	private JButton buttonOk = new JButton("OK");
 	private JButton buttonCancel = new JButton("キャンセル");
-	private JButton buttonTestMail = new JButton("テストメール");
 	private JFrame frame;
+	private String exFieldOfficeName;
 	
 	//コンストラクタ
 	public SettingDialog(JFrame owner) {
 		super(owner);
 		frame = owner;
 		setTitle("設定ダイアログ");
-		setBounds(128, 128, 386, 512);
+		setBounds(128, 64, 386, 640);
 		setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 		
 		//各フィールドの設定
@@ -68,6 +74,7 @@ public class SettingDialog extends JDialog implements ActionListener{
 				if(cameraNumber >= QrReader.getInstance().getWebcamNames().length) cameraNumber = 0;
 			comboCamera.setSelectedIndex(cameraNumber);
 			fieldOfficeName.setText(resultSet.getString("OFFICE_NAME"));
+			exFieldOfficeName = fieldOfficeName.getText();
 			fieldFromAddress.setText(resultSet.getString("FROM_ADDRESS"));
 			fieldFromName.setText(resultSet.getString("FROM_NAME"));
 			fieldAccountName.setText(resultSet.getString("ACCOUNT_NAME"));
@@ -107,19 +114,21 @@ public class SettingDialog extends JDialog implements ActionListener{
 		vBox.add(fieldSmtpPort);
 		vBox.add(Box.createVerticalStrut(10));
 		Panel input = new Panel();
-		input.setLayout(new GridLayout(1, 3));
+		input.setLayout(new GridLayout(2, 2));
+		input.add(buttonMailMessage);
+		input.add(buttonTestMail);
 		input.add(buttonOk);
 		input.add(buttonCancel);
-		input.add(buttonTestMail);
 		vBox.add(input);
 		vBox.add(Box.createVerticalStrut(10));
 		
 		c.add(vBox);
 		
 		//ボタンにリスナー登録
+		buttonMailMessage.addActionListener(this);
+		buttonTestMail.addActionListener(this);
 		buttonOk.addActionListener(this);
 		buttonCancel.addActionListener(this);
-		buttonTestMail.addActionListener(this);
 	}
 	
 	//アクションイベント
@@ -127,14 +136,22 @@ public class SettingDialog extends JDialog implements ActionListener{
 		//キャンセルなら閉じる
 		if(e.getSource() == buttonCancel) {
 			dispose();
+		//メール文設定の場合
+		} else if(e.getSource() == buttonMailMessage) {
+			MailMessageSettingDialog dialog = new MailMessageSettingDialog(frame);
+			dialog.setModal(true);	//操作ブロック
+			dialog.setVisible(true);
 		//テストメールの場合
 		} else if(e.getSource() == buttonTestMail) {
-			SendMail sendMail = new SendMail(frame, fieldFromAddress.getText(), fieldFromName.getText(), fieldAccountName.getText(), fieldPassword.getText(), fieldSmtpServer.getText(), fieldSmtpPort.getText());
-			ArrayList<String> toAddress = new ArrayList<String>();
-			toAddress.add(fieldFromAddress.getText());
-			String subject = "テストメールの送信";
-			String message = "テストメールです。";
-			if(sendMail.send(toAddress, subject, message)) JOptionPane.showMessageDialog(this, "テストメールが送信されました。");
+			SendMail sendMail;
+			try {
+				sendMail = new SendMail(frame);
+				ArrayList<String> toAddress = new ArrayList<String>();
+				toAddress.add(fieldFromAddress.getText());
+				if(sendMail.send(toAddress, SendMail.IN)) JOptionPane.showMessageDialog(this, "入室メールを送信名アドレスに送信しました。");
+			} catch (Exception e1) {
+				JOptionPane.showMessageDialog(frame, e1.toString());				
+			}
 		//そうでなければOKなのでチェック
 		} else {
 			String message = "";
@@ -159,9 +176,17 @@ public class SettingDialog extends JDialog implements ActionListener{
 			//エラーがあるなら
 			if(!message.equals("")) {
 				JOptionPane.showMessageDialog(this, message);
-			//エラーがないなら追加登録
+			//エラーがない場合
 			} else {
-				updateDatabase();
+				int option = JOptionPane.YES_OPTION;
+				//教室名が変更されている場合
+				if(!fieldOfficeName.getText().equals(exFieldOfficeName)) {
+					option = JOptionPane.showConfirmDialog(this, "教室名を変更した場合、全QRコードが書き換わります。\n更新して良いですか？", "最終確認", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+				}
+				//教室名が変更無し、または、教室名変更がOKの場合
+				if(option == JOptionPane.YES_OPTION) {
+					updateDatabase();
+				}
 			}
 		}
 	}
@@ -178,8 +203,7 @@ public class SettingDialog extends JDialog implements ActionListener{
 			//終了
 			dispose();
 		} catch (SQLException e1) {
-			e1.printStackTrace();
-			JOptionPane.showMessageDialog(this, "データベースに接続できません。");
+			JOptionPane.showMessageDialog(this, "データベースに接続できません。\n" + e1.toString());
 		}
 	}
 	

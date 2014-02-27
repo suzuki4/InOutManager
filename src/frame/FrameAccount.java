@@ -34,7 +34,7 @@ public class FrameAccount extends JFrame implements ActionListener{
 	private JButton buttonEdit = new JButton("編集");
 	private JButton buttonDelete = new JButton("削除");
 	private JButton buttonHistory = new JButton("入退室履歴");
-	private JButton buttonCsv = new JButton("csv入出力");
+	private JButton buttonCsv = new JButton("CSV入出力");
 	private JButton buttonBack = new JButton("戻る");
 	public Panel panelAccount = new Panel();
 	private Frame frame;
@@ -48,6 +48,14 @@ public class FrameAccount extends JFrame implements ActionListener{
 		//親フレームをフィールドへ
 		this.frame = frame;
 		
+		//サイズ
+		buttonNew.setMaximumSize(new Dimension(Short.MAX_VALUE, buttonNew.getMinimumSize().height));
+		buttonEdit.setMaximumSize(new Dimension(Short.MAX_VALUE, buttonNew.getMinimumSize().height));
+		buttonDelete.setMaximumSize(new Dimension(Short.MAX_VALUE, buttonNew.getMinimumSize().height));
+		buttonHistory.setMaximumSize(new Dimension(Short.MAX_VALUE, buttonNew.getMinimumSize().height));
+		buttonCsv.setMaximumSize(new Dimension(Short.MAX_VALUE, buttonNew.getMinimumSize().height));
+		buttonBack.setMaximumSize(new Dimension(Short.MAX_VALUE, buttonNew.getMinimumSize().height));
+		
 		//リスナー
 		buttonNew.addActionListener(this);
 		buttonEdit.addActionListener(this);
@@ -58,7 +66,7 @@ public class FrameAccount extends JFrame implements ActionListener{
 		
 		//パネル構成物作成
 		panelAccount.setLayout(new BoxLayout(panelAccount, BoxLayout.Y_AXIS));
-		//NORTH
+		//1行
 			//メニューパネルを作成
 		    Panel menuPanel = new Panel();
 		    menuPanel.setLayout(new GridLayout(2, 3));
@@ -70,7 +78,7 @@ public class FrameAccount extends JFrame implements ActionListener{
 		    menuPanel.add(buttonBack);
 		    //配置
 		    panelAccount.add(menuPanel);
-		//SOUTH
+		//2行
 		    //テーブル作成
 		    tableAccount = new TableAccount();
 		    tablePane = tableAccount.getTablePane();
@@ -177,6 +185,7 @@ public class FrameAccount extends JFrame implements ActionListener{
 						manager.readCsv(filePath);
 				        manager.closeAll();
 				        tableUpdate();	//テーブル更新
+				        JOptionPane.showMessageDialog(this, "CSV入力が完了しました。");
 					} catch (SQLException e1) {
 						e1.printStackTrace();
 					}
@@ -188,6 +197,7 @@ public class FrameAccount extends JFrame implements ActionListener{
 						manager.writeCsv(filePath);
 						manager.writeQr();
 				        manager.closeAll();
+				        JOptionPane.showMessageDialog(this, "CSV出力が完了しました。\n同時にqrフォルダにQRコードも出力しました。");
 					} catch (SQLException e1) {
 						e1.printStackTrace();
 					}

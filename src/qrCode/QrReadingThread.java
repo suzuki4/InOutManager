@@ -19,76 +19,74 @@ public class QrReadingThread extends Thread {
 	private final int STATE_IN = 0;
 	private final int STATE_OUT = 1;
 	private final int STATE_FAST = 2;
-	private JFrame frame; 
+	private FrameMain frame; 
 	private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:00");
 	
-	public QrReadingThread(JFrame frame) {
+	public QrReadingThread(FrameMain frame) {
 		this.frame = frame;
 	}
 	
 	public void run() {
+		Sound sound = new Sound();
 		QrReader qrReader = QrReader.getInstance();
 		String qr = qrReader.getQr();
-		long id = -1;
-		DBManager manager = DBManager.getInstance();
-		try {
-			//officeNameが異なると例外を投げる
-			String officeName = manager.getOfficeName();
-			if(qr.indexOf(officeName) == -1) throw new SQLException("不正な教室名です。");
-			//idを取得。存在しない場合、例外を投げる
-			id = Long.parseLong(qr.substring(officeName.length()));
-			if(!manager.isId(id)) throw new SQLException("登録IDが存在しません。");
-			//入退室時間を取得
-			Date inTime = manager.getLastInHistory(id);
-			Date outTime = manager.getLastOutHistory(id);
-			//現在時間を取得
-			Date nowTime = new Date();
-			String nowTimeString = dateFormat.format(nowTime);
-			//入退室どちらで処理するか
-			int state = state(inTime, outTime, nowTimeString);
-			//入退室の場合
-			if(state != STATE_FAST) {
-				//送信先アドレス取得
-				ArrayList<String> toAddress = manager.getEmail(id);
-				//送信先アドレスがある場合
-				if(!toAddress.isEmpty()) {
-					ResultSet resultSet = manager.showMasterData();
-					SendMail sendMail = new SendMail(frame, resultSet.getString("FROM_ADDRESS"), resultSet.getString("FROM_NAME"), resultSet.getString("ACCOUNT_NAME"), resultSet.getString("PASSWORD"), resultSet.getString("SMTP_SERVER"), resultSet.getString("SMTP_PORT"));							
-					//入室の場合
-					if(state == STATE_IN) {
-						//メール送信して登録
-						sendMail.send(toAddress, SendMail.subject, SendMail.inMailMessage);
-						manager.addInHistory(id, nowTimeString);
-						////oto
-					}
-					//退室の場合
-					else {
-						//メール送信して登録
-						sendMail.send(toAddress, SendMail.subject, SendMail.outMailMessage);
-						manager.addOutHistory(id, nowTimeString);
-						////oto
-					}
-				//送信先アドレスがない場合
+		if(qr != null) {
+			long id = -1;
+			DBManager manager = DBManager.getInstance();
+			try {
+				//officeNameが異なると例外を投げる
+				String officeName = manager.getOfficeName();
+				if(qr.indexOf(officeName) == -1) throw new SQLException("不正な教室名です。");
+				//idを取得。存在しない場合、例外を投げる
+				id = Long.parseLong(qr.substring(officeName.length()));
+				if(!manager.isId(id)) throw new SQLException("登録IDが存在しません。");
+				//入退室時間を取得
+				Date inTime = manager.getLastInHistory(id);
+				Date outTime = manager.getLastOutHistory(id);
+				//現在時間を取得
+				Date nowTime = new Date();
+				String nowTimeString = dateFormat.format(nowTime);
+				//入退室どちらで処理するか
+				int state = state(inTime, outTime, nowTimeString);
+				//入退室の場合
+				if(state != STATE_FAST) {
+					//送信先アドレス取得
+					ArrayList<String> toAddress = manager.getEmail(id);
+					//送信先アドレスがある場合
+					if(!toAddress.isEmpty()) {
+						SendMail sendMail = new SendMail(frame);							
+						//入室の場合
+						if(state == STATE_IN) {
+							//メール送信して登録
+							sound.play(sound.SOUND_IN);
+							sendMail.send(toAddress, SendMail.IN);
+							manager.addInHistory(id, nowTimeString);
+						}
+						//退室の場合
+						else {
+							//メール送信して登録
+							sound.play(sound.SOUND_OUT);
+							sendMail.send(toAddress, SendMail.OUT);
+							manager.addOutHistory(id, nowTimeString);
+						}
+						frame.setMsg();
+					//送信先アドレスがない場合
+					} else {
+					throw new Exception("送信不可！！\n送信できるアドレスが有りません。");
+					}				
+				//前回入退室から1分も経っていない場合
 				} else {
-				////oto
-				System.out.println("noaddress");
-				}				
-			//前回入退室から1分も経っていない場合
-			} else {
-				////oto
-				System.out.println("toofast");
+					sound.play(sound.SOUND_TOO_FAST);
+				}
+			} catch (Exception e) {
+				sound.play(sound.SOUND_ERROR);
+				qrReader.isWorking = false;
+				FrameMain.cardLayout.show(FrameMain.cardPanel, FrameMain.OFF);
+				JOptionPane.showMessageDialog(frame, e.getMessage());
+			} finally {
+				manager.closeAll();
 			}
-		} catch (SQLException e) {
-			////oto
-			System.out.println("error");
-			qrReader.isWorking = false;
-			FrameMain.cardLayout.show(FrameMain.cardPanel, FrameMain.OFF);
-			JOptionPane.showMessageDialog(frame, e.getMessage());
-		} finally {
-			manager.closeAll();
 		}
-		
-		System.out.println("again");
 		//QrReaderのisWorkingがfalseになるまでもう1回！
 		if(qrReader.isWorking == true) new QrReadingThread(frame).start();
 	}

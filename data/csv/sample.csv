@@ -1,0 +1,3 @@
+"ID","STUDENT_NAME","PARENT_NAME","STATUS1","EMAIL1","STATUS2","EMAIL2","STATUS3","EMAIL3","QR_CODE"
+"1","サンプル　太郎","サンプル　太郎母","TRUE","sample@spl.com",,,,,"C:\\workspace\\InOutManager\\data\\qr\\田進ゼミ上池台校1.png"
+"2","例　次郎","例　次郎父","FALSE",,,,,,"C:\\workspace\\InOutManager\\data\\qr\\田進ゼミ上池台校2.png"

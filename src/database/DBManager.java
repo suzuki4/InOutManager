@@ -1,7 +1,11 @@
 package database;
 
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 
 import qrCode.QrWriter;
 
@@ -14,9 +18,9 @@ public final class DBManager {
     }
     
     //フィールド
-    public Connection connection;
-    public Statement statement;
-    public ResultSet resultSet;
+    private Connection connection;
+    private Statement statement;
+    private ResultSet resultSet;
     
     //全て接続を閉じる
     public void closeAll() {
@@ -67,25 +71,17 @@ public final class DBManager {
 	
 	//OFFICE_NAMEを返す
 	public String getOfficeName() throws SQLException {
-		//接続
-		connection = connect();
-		statement = connection.createStatement();
 		//内容を取得
-        resultSet = statement.executeQuery("SELECT OFFICE_NAME FROM MASTER_DATA");
+        resultSet = showMasterData();
         //resultSetからStringへ
-        resultSet.next();
         return resultSet.getString("OFFICE_NAME");
 	}
 	
 	//CAMERA_INTEGERを返す
 	public int getCamera() throws SQLException {
-		//接続
-		connection = connect();
-		statement = connection.createStatement();
 		//内容を取得
-        resultSet = statement.executeQuery("SELECT CAMERA FROM MASTER_DATA");
+        resultSet = showMasterData();
         //resultSetからintへ
-        resultSet.next();
         return resultSet.getInt("CAMERA");
 	}
 	
@@ -105,7 +101,40 @@ public final class DBManager {
 		statement.executeUpdate("UPDATE MASTER_DATA SET SMTP_PORT = '" + smtpPort + "'");	
     }
 	
-	
+//メール内容情報
+  	public ResultSet showMailMessageData() throws SQLException {
+  		//接続
+  		connection = connect();
+  		statement = connection.createStatement();
+          //ＤＢの新規作成時はテーブルがないので作成
+          statement.executeUpdate("CREATE TABLE IF NOT EXISTS MAIL_MESSAGE_DATA(IN_SUBJECT VARCHAR(255), "
+  																	+ "IN_MESSAGE VARCHAR(1023), "
+  			                    									+ "OUT_SUBJECT VARCHAR(255), "
+  			                    									+ "OUT_MESSAGE VARCHAR(1023))");
+          //内容を取得
+          resultSet = statement.executeQuery("SELECT * FROM MAIL_MESSAGE_DATA");
+          //内容が無い場合
+          if(!resultSet.next()) {
+      		statement.executeUpdate("INSERT INTO MAIL_MESSAGE_DATA VALUES('入退室管理システム', '入室しました。', '入退室管理システム', '退室しました。')");
+      		resultSet = statement.executeQuery("SELECT * FROM MAIL_MESSAGE_DATA");
+      		resultSet.next();
+          }
+          return resultSet;
+  	}
+
+	//レコード編集
+    public void updateMailMessageData(String inMailSubject, String inMailMessage, String outMailSubject, String outMailMessage) throws SQLException {
+    	//接続
+		connection = connect();
+		statement = connection.createStatement();
+        //更新
+		statement.executeUpdate("UPDATE MAIL_MESSAGE_DATA SET IN_SUBJECT = '" + inMailSubject + "'");
+		statement.executeUpdate("UPDATE MAIL_MESSAGE_DATA SET IN_MESSAGE = '" + inMailMessage + "'");
+		statement.executeUpdate("UPDATE MAIL_MESSAGE_DATA SET OUT_SUBJECT = '" + outMailSubject + "'");
+		statement.executeUpdate("UPDATE MAIL_MESSAGE_DATA SET OUT_MESSAGE = '" + outMailMessage + "'");
+    }
+
+  	
 //TableAccount
 	//TableAccount表示
     public ResultSet showTableAccount() throws SQLException {
@@ -143,12 +172,29 @@ public final class DBManager {
     	//接続
 		connection = connect();
 		statement = connection.createStatement();
-        //入力
+		//入力
 		try {
+			statement.executeUpdate("BEGIN TRANSACTION");
 			statement.executeUpdate("DELETE FROM DATA");
 	        statement.executeUpdate("INSERT INTO DATA SELECT * FROM CSVREAD('" + filePath + "', NULL, 'SHIFT_JIS')");
+			statement.executeUpdate("COMMIT");
 		} catch(SQLException e) {
-			System.out.println("cant read");
+			JOptionPane.showMessageDialog(new JFrame(), "CSVファイルを読み込めません。\n" + e.toString());
+		} finally {
+			statement.executeUpdate("ROLLBACK");
+		}
+		//取り込んだCSVにIDがなくなっていたら、データからそのIDの履歴を削除
+		try {
+			resultSet = statement.executeQuery("SELECT ID FROM IN_HISTORY WHERE ID NOT IN(SELECT ID FROM DATA)");
+	        while(resultSet.next()) {
+	        	connection.createStatement().executeUpdate("DELETE FROM IN_HISTORY WHERE ID = " + resultSet.getLong("ID"));
+	        }
+			resultSet = statement.executeQuery("SELECT ID FROM OUT_HISTORY WHERE ID NOT IN(SELECT ID FROM DATA)");
+	        while(resultSet.next()) {
+	        	connection.createStatement().executeUpdate("DELETE FROM OUT_HISTORY WHERE ID = " + resultSet.getLong("ID"));
+	        }			
+		} catch(SQLException e) {
+			JOptionPane.showMessageDialog(new JFrame(), e.toString());
 			e.printStackTrace();
 		}
     }
@@ -264,6 +310,53 @@ public final class DBManager {
     	return outTime;
     }
     
+    //指定日付の入退室情報を返す
+    public String getInHistory(String inDate) throws SQLException {
+    	//接続
+    	connection = connect();
+    	statement = connection.createStatement();
+    	//内容を表示
+    	String msg = "　入室時刻\t生徒名\n";
+    	ResultSet resultSetHistory = statement.executeQuery("SELECT ID, IN_TIME FROM IN_HISTORY WHERE TRUNC(IN_TIME) = '" + inDate + "' ORDER BY IN_TIME");
+    	while(resultSetHistory.next()) {
+        	//inTime
+            String inTime = new SimpleDateFormat("HH:mm").format(resultSetHistory.getTime("IN_TIME"));
+        	//id
+        	long id = resultSetHistory.getLong("ID");
+        	//studentName
+        	Statement statement2 = connection.createStatement();
+        	ResultSet resultSetData = statement2.executeQuery("SELECT STUDENT_NAME FROM DATA WHERE ID = " + id);
+            resultSetData.next();
+            String studentName = resultSetData.getString("STUDENT_NAME");
+        	//msg
+            msg += "　" + inTime + "\t" + studentName + "\n";
+        }
+    	return msg;
+    }
+    public String getOutHistory(String outDate) throws SQLException {
+    	//接続
+    	connection = connect();
+    	statement = connection.createStatement();
+    	//内容を表示
+    	String msg = "　退室時刻\t生徒名\n";
+    	ResultSet resultSetHistory = statement.executeQuery("SELECT ID, OUT_TIME FROM OUT_HISTORY WHERE TRUNC(OUT_TIME) = '" + outDate + "' ORDER BY OUT_TIME");
+    	while(resultSetHistory.next()) {
+        	//outTime
+            String outTime = new SimpleDateFormat("HH:mm").format(resultSetHistory.getTime("OUT_TIME"));
+        	//id
+        	long id = resultSetHistory.getLong("ID");
+        	//studentName
+        	Statement statement2 = connection.createStatement();
+        	ResultSet resultSetData = statement2.executeQuery("SELECT STUDENT_NAME FROM DATA WHERE ID = " + id);
+            resultSetData.next();
+            String studentName = resultSetData.getString("STUDENT_NAME");
+        	//msg
+            msg += "　" + outTime + "\t" + studentName + "\n";
+        }
+    	return msg;
+    }
+
+    
     //レコード追加
     //入室時刻
     public void addInHistory(long id, String inTime) throws SQLException {
@@ -302,8 +395,7 @@ public final class DBManager {
     	//History削除
     	statement.executeUpdate("DELETE FROM IN_HISTORY WHERE ID = " + id);
     	statement.executeUpdate("DELETE FROM OUT_HISTORY WHERE ID = " + id);   
-    }
-    
+    }    
     //入室時刻
     public void deleteInHistory(long id, String inTime) throws SQLException {
     	//接続

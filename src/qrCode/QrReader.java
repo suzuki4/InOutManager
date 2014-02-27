@@ -6,6 +6,9 @@ import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
 
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamResolution;
 import com.google.zxing.BinaryBitmap;
@@ -42,6 +45,7 @@ public class QrReader {
 			cameraNumber = manager.getCamera();
 			manager.closeAll();
 		} catch (SQLException e) {
+			//JOptionPane.showMessageDialog(new JFrame(), e.toString());
 			e.printStackTrace();
 		}
 		//画像サイズ
@@ -101,7 +105,6 @@ public class QrReader {
             return result.getText();
     	}
 		webcam.close();
-		Webcam.getDiscoveryService().stop();
 		return null;
 	}
 }
